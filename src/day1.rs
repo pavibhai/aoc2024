@@ -1,136 +1,77 @@
 use std::iter::Iterator;
 
-pub fn part1(lines: &[Vec<char>]) -> u32 {
-  lines.iter().map(|line| {
-    let n = 10 * line.iter()
-      .find(|&c| c.is_ascii_digit())
-      .unwrap()
-      .to_digit(10).unwrap_or(0);
-
-    n + line.iter()
-      .rfind(|&c| c.is_ascii_digit())
-      .unwrap()
-      .to_digit(10).unwrap_or(0)
-  }).sum()
+pub fn part1(locations: &(Vec<u32>, Vec<u32>)) -> u32 {
+    let (l_locs, r_locs) = locations;
+    l_locs.iter().zip(r_locs.iter()).map(|(l, r)| l.abs_diff(*r)).sum()
 }
 
-fn to_digit(input: &[char], first: bool, numbers: &[Vec<char>]) -> Option<usize> {
-  let inp_len = input.len();
-  if first {
-    match input.last() {
-      None => None,
-      Some(c)  if c.is_ascii_digit() => c.to_digit(10).map(|n| n as usize),
-      _ => numbers.iter().position(|num| {
-        let l = num.len();
-        inp_len >= l && num == &input[inp_len - l..inp_len]
-      })
+pub fn part2(locations: &(Vec<u32>, Vec<u32>)) -> u32 {
+    let (l_locs, r_locs) = locations;
+
+    let mut similarity_score = 0;
+    let mut r_idx: usize = 0;
+    let mut l_prev: Option<(u32, u32)> = None;
+    for l_id in l_locs {
+        if l_prev.is_some() && &l_prev.unwrap().0 == l_id {
+            similarity_score += l_prev.unwrap().1;
+            continue;
+        }
+
+        while r_idx < r_locs.len() && l_id > &r_locs[r_idx] {
+            r_idx += 1;
+        }
+        let mut score: u32 = 0;
+        while r_idx < r_locs.len() && l_id == &r_locs[r_idx] {
+            score += r_locs[r_idx];
+            r_idx += 1;
+        }
+        l_prev = Some((*l_id, score));
+        similarity_score += score;
     }
-  } else {
-    match input.first() {
-      None => None,
-      Some(c) if c.is_ascii_digit() => c.to_digit(10).map(|n| n as usize),
-      _ => numbers.iter().position(|num| {
-        let l = num.len();
-        inp_len >= l && num == &input[0..l]
-      })
+    similarity_score
+}
+
+pub fn generator(input: &str) -> (Vec<u32>, Vec<u32>) {
+    let mut left_locations: Vec<u32> = Vec::new();
+    let mut right_locations: Vec<u32> = Vec::new();
+
+    for line in input.lines() {
+        let (l, r) = line.split_once("   ").unwrap();
+        left_locations.push(l.parse::<u32>().unwrap());
+        right_locations.push(r.parse::<u32>().unwrap());
     }
-  }
-}
+    left_locations.sort();
+    right_locations.sort();
 
-fn make_numbers() -> [Vec<char>; 10] {
-  [
-    "zero".chars().collect(),
-    "one".chars().collect(),
-    "two".chars().collect(),
-    "three".chars().collect(),
-    "four".chars().collect(),
-    "five".chars().collect(),
-    "six".chars().collect(),
-    "seven".chars().collect(),
-    "eight".chars().collect(),
-    "nine".chars().collect(),
-  ]
-}
-
-pub fn part2(lines: &[Vec<char>]) -> usize {
-  let numbers: [Vec<char>; 10] = make_numbers();
-  lines.iter().map(|line| {
-    let indicies: Vec<usize> = (0..line.len()).collect();
-    let n = 10 * indicies.iter().find_map(|i| {
-      to_digit(&line[0..i + 1], true, &numbers)
-    }).unwrap_or(0);
-    n + indicies.iter().rev().find_map(|i| {
-      to_digit(&line[*i..line.len()], false, &numbers)
-    }).unwrap_or(0)
-  }).sum()
-}
-
-pub fn generator(input: &str) -> Vec<Vec<char>> {
-  input.lines()
-    .map(|l| l.chars().collect())
-    .collect()
+    (left_locations, right_locations)
 }
 
 #[cfg(test)]
 mod tests {
-  use crate::day1::{generator, make_numbers, part1, part2, to_digit};
+    use crate::day1::{generator, part1, part2};
 
-  fn str_to_digit(input: &str, first: bool, numbers: &[Vec<char>]) -> Option<usize> {
-    let chars: Vec<char> = input.chars().collect();
-    to_digit(&chars, first, numbers)
-  }
+    fn input() -> String {
+        ["3   4", "4   3", "2   5", "1   3", "3   9", "3   3"].join("\n")
+    }
 
-  fn input() -> String {
-    [
-      "1abc2",
-      "pqr3stu8vwx",
-      "a1b2c3d4e5f",
-      "treb7uchet",
-    ].join("\n")
-  }
+    #[test]
+    fn test_generator() {
+        let (l, r) = generator(&input());
+        assert_eq!(l.len(), 6);
+        assert_eq!(r.len(), 6);
+        assert_eq!(l, vec![1, 2, 3, 3, 3, 4]);
+        assert_eq!(r, vec![3, 3, 3, 4, 5, 9]);
+    }
 
-  fn input2() -> String {
-    [
-      "two1nine",
-      "eightwothree",
-      "abcone2threexyz",
-      "xtwone3four",
-      "4nineeightseven2",
-      "zoneight234",
-      "7pqrstsixteen",
-    ].join("\n")
-  }
+    #[test]
+    fn test_part_1() {
+        let values = generator(&input());
+        assert_eq!(part1(&values), 11);
+    }
 
-  #[test]
-  fn test_generator() {
-    let values = generator(&input());
-    assert_eq!(values.len(), 4);
-    assert_eq!(values[0].len(), 5);
-    assert_eq!(values[1].len(), 11);
-    assert_eq!(values[2].len(), 11);
-    assert_eq!(values[3].len(), 10);
-  }
-
-  #[test]
-  fn test_part_1() {
-    let values = generator(&input());
-    assert_eq!(142, part1(&values));
-  }
-
-  #[test]
-  fn test_to_digit() {
-    let numbers: [Vec<char>; 10] = make_numbers();
-    assert_eq!(1, str_to_digit("one", true, &numbers).unwrap());
-    assert_eq!(1, str_to_digit("one", false, &numbers).unwrap());
-    assert_eq!(None, str_to_digit("onea", true, &numbers));
-    assert_eq!(1, str_to_digit("one1", false, &numbers).unwrap());
-    assert_eq!(9, str_to_digit("two1nine", true, &numbers).unwrap());
-    assert_eq!(2, str_to_digit("two1nine", false, &numbers).unwrap());
-  }
-
-  #[test]
-  fn test_part2() {
-    let lines = generator(&input2());
-    assert_eq!(281, part2(&lines));
-  }
+    #[test]
+    fn test_part_2() {
+        let values = generator(&input());
+        assert_eq!(part2(&values), 31);
+    }
 }
