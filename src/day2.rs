@@ -1,5 +1,8 @@
 use std::iter::Iterator;
 
+const INCREASES: [i32; 3] = [1, 2, 3];
+const DECREASES: [i32; 3] = [-1, -2, -3];
+
 pub fn part1(reports: &Vec<Vec<i32>>) -> u32 {
     reports
         .iter()
@@ -8,60 +11,44 @@ pub fn part1(reports: &Vec<Vec<i32>>) -> u32 {
 }
 
 fn is_safe(r: &Vec<i32>, dampener: bool) -> u32 {
-    let mut result = is_safe_fwd(r, dampener);
-    if result == 0 {
-        let mut r = r.clone();
-        r.reverse();
-        result = is_safe_fwd(&r, dampener);
-    }
-    result
-}
-
-fn is_safe_fwd(r: &Vec<i32>, dampener: bool) -> u32 {
     let changes: Vec<i32> = r.windows(2).map(|w| w[1] - w[0]).collect();
-    let increases_forward: Vec<&i32> = changes.iter().take_while(|c| *c > &0 && *c < &4).collect();
-    let increases_backward: Vec<&i32> = changes
-        .iter()
-        .rev()
-        .take_while(|c| *c > &0 && *c < &4)
-        .collect();
+    for allowed in [DECREASES, INCREASES] {
+        let forward = changes.iter().take_while(|c| allowed.contains(c)).count();
+        let backward = changes
+            .iter()
+            .rev()
+            .take_while(|c| allowed.contains(c))
+            .count();
 
-    if increases_forward.len() == changes.len() || increases_backward.len() == changes.len() {
-        return 1;
-    } else if !dampener {
-        return 0;
-    }
-
-    if increases_forward.len() + increases_backward.len() + 1 == changes.len()
-        && (increases_forward.is_empty() || increases_backward.is_empty())
-    {
-        return 1;
-    }
-
-    if changes.len() - increases_forward.len() - increases_backward.len() > 2 {
-        return 0;
-    }
-
-    match changes.len() - increases_forward.len() - increases_backward.len() {
-        1 => {
-            let f_diff = changes[increases_forward.len()] + *increases_forward.last().unwrap();
-            let b_diff = changes[increases_forward.len()] + *increases_backward.last().unwrap();
-            if (f_diff > 0 && f_diff < 4) || (b_diff > 0 && b_diff < 4) {
-                1
-            } else {
-                0
-            }
+        if forward == changes.len() || backward == changes.len() {
+            return 1;
+        } else if !dampener {
+            continue;
         }
-        2 => {
-            let diff = changes[increases_forward.len()] + changes[increases_forward.len() + 1];
-            if diff > 0 && diff < 4 {
-                1
-            } else {
-                0
+
+        match changes.len() - forward - backward {
+            1 if forward == 0 || backward == 0 => return 1,
+            1 => {
+                let f_diff = changes[forward] + changes[forward - 1];
+                let b_diff = changes[forward] + changes[forward + 1];
+                if allowed.contains(&f_diff) || allowed.contains(&b_diff) {
+                    return 1;
+                } else {
+                    continue;
+                }
             }
+            2 => {
+                let diff = changes[forward] + changes[forward + 1];
+                if allowed.contains(&diff) {
+                    return 1;
+                } else {
+                    continue;
+                }
+            }
+            _ => continue,
         }
-        _ => 0
     }
+    0
 }
 
 pub fn part2(reports: &Vec<Vec<i32>>) -> u32 {
