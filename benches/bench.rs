@@ -1,4 +1,4 @@
-use aoc2023 as aoc_lib;
+use aoc2024 as aoc_lib;
 use criterion::{criterion_group, criterion_main, Criterion};
 
 macro_rules! benchmarks_internal {
