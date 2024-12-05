@@ -14,9 +14,8 @@ pub fn generator(input: &str) -> Puzzle {
 }
 
 pub struct Puzzle {
-    rules: HashSet<(u32, u32)>,
     valid: Vec<Vec<u32>>,
-    invalid: Vec<Vec<u32>>,
+    invalid: Vec<Vec<(u32, i32)>>,
 }
 
 impl Puzzle {
@@ -27,31 +26,34 @@ impl Puzzle {
                 let (b, a) = l.split_once("|").unwrap();
                 (b.parse().unwrap(), a.parse().unwrap())
             }).collect();
-        /*        let updates: Vec<Vec<u32>> = updates.lines()
-                    .map(|l| l.split(",").map(|u| u.parse().unwrap()).collect())
-                    .collect();*/
 
         let mut valid = Vec::new();
-        let mut invalid = Vec::new();
+        let mut invalid: Vec<Vec<(u32, i32)>> = Vec::new();
 
         updates.lines().for_each(|line| {
             let u: Vec<u32> = line.split(',').map(|s| s.parse().unwrap()).collect();
             let mut pass = true;
+            let mut ordering = vec![0i32; u.len()];
             for i in 0..u.len() - 1 {
-                if (i + 1..u.len()).any(|j| rules.contains(&(u[j], u[i]))) {
-                    pass = false;
-                    break;
+                for j in i+1..u.len() {
+                    if rules.contains(&(u[i], u[j])) {
+                        ordering[i] -= 1;
+                        ordering[j] += 1;
+                    } else {
+                        pass = false;
+                        ordering[i] += 1;
+                        ordering[j] -= 1;
+                    }
                 }
             }
             if pass {
                 valid.push(u);
             } else {
-                invalid.push(u);
+                invalid.push(u.iter().zip(ordering).map(|(&p, o)| (p, o)).collect());
             }
         });
 
         Puzzle {
-            rules,
             valid,
             invalid,
         }
@@ -65,21 +67,11 @@ impl Puzzle {
     fn score_invalid_updates(&self) -> u32 {
         let mut score = 0;
         self.invalid.iter().for_each(|u| {
-            for i in 0..u.len() {
-                let mut found: i32 = 0;
-                for j in 0..u.len() {
-                    if i == j { continue; }
-                    if self.rules.contains(&(u[i], u[j])) {
-                        found += 1;
-                    } else if self.rules.contains(&(u[j], u[i])) {
-                        found -= 1;
-                    }
-                }
-                if found == 0 {
-                    score += u[i];
-                    break;
-                }
-            }
+            score += u.iter().find_map(|(p, o)| if o == &0 {
+                Some(p)
+            } else {
+                None
+            }).unwrap();
         });
 
         score
@@ -122,7 +114,6 @@ mod tests {
     #[test]
     fn test_generator() {
         let puzzle = generator(&INPUT);
-        assert_eq!(puzzle.rules.len(), 21);
         assert_eq!(puzzle.valid.len() + puzzle.invalid.len(), 6);
     }
 
