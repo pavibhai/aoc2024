@@ -48,7 +48,7 @@ pub fn generator(input: &str) -> (Vec<u32>, Vec<u32>) {
 
 #[cfg(test)]
 mod tests {
-    use crate::day1::{generator, part1, part2};
+    use super::{generator, part1, part2};
 
     fn input() -> String {
         ["3   4", "4   3", "2   5", "1   3", "3   9", "3   3"].join("\n")

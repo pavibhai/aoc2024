@@ -68,7 +68,7 @@ pub fn generator(input: &str) -> Vec<Vec<i32>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::day2::{generator, is_safe, part1, part2};
+    use super::{generator, is_safe, part1, part2};
 
     const INPUT: &str = "7 6 4 2 1
 1 2 7 8 9
