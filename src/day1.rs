@@ -50,13 +50,16 @@ pub fn generator(input: &str) -> (Vec<u32>, Vec<u32>) {
 mod tests {
     use super::{generator, part1, part2};
 
-    fn input() -> String {
-        ["3   4", "4   3", "2   5", "1   3", "3   9", "3   3"].join("\n")
-    }
+    const INPUT: &str = "3   4
+4   3
+2   5
+1   3
+3   9
+3   3";
 
     #[test]
     fn test_generator() {
-        let (l, r) = generator(&input());
+        let (l, r) = generator(&INPUT);
         assert_eq!(l.len(), 6);
         assert_eq!(r.len(), 6);
         assert_eq!(l, vec![1, 2, 3, 3, 3, 4]);
@@ -65,13 +68,13 @@ mod tests {
 
     #[test]
     fn test_part_1() {
-        let values = generator(&input());
+        let values = generator(&INPUT);
         assert_eq!(part1(&values), 11);
     }
 
     #[test]
     fn test_part_2() {
-        let values = generator(&input());
+        let values = generator(&INPUT);
         assert_eq!(part2(&values), 31);
     }
 }
