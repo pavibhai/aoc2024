@@ -1,19 +1,22 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashMap;
 
 pub fn part1(stones: &Vec<u64>) -> u64 {
-    let mut cache = HashMap::new();
-    stones.iter().map(|s| blink_dfs(*s, 25, &mut cache)).sum()
+    blink(stones, 25)
 }
 
 pub fn part2(stones: &Vec<u64>) -> u64 {
-    let mut cache = HashMap::new();
-    stones.iter().map(|s| blink_dfs(*s, 75, &mut cache)).sum()
+    blink(stones, 75)
 }
 
 pub fn generator(input: &str) -> Vec<u64> {
     input.split_whitespace()
         .map(|x| x.parse().unwrap())
         .collect()
+}
+
+fn blink(stones: &[u64], times: u32) -> u64 {
+    let mut cache = HashMap::new();
+    stones.iter().map(|s| blink_dfs(*s, times, &mut cache)).sum()
 }
 
 fn blink_dfs(n: u64, times: u32, cache: &mut HashMap<(u64, u32), u64>) -> u64 {
@@ -49,29 +52,6 @@ fn from_cache_or_compute(n: u64, times: u32, cache: &mut HashMap<(u64, u32), u64
 
 fn digits(n: u64) -> u32 {
     n.ilog10() + 1
-}
-
-pub fn blink(stones: &mut VecDeque<u64>, seen: &mut HashSet<u64>) {
-    let n = stones.len();
-    for _ in 0..n {
-        let s = stones.pop_front().unwrap();
-        seen.insert(s);
-        match s {
-            0 => {
-                stones.push_back(1)
-            }
-            _ => {
-                match digits(s) {
-                    n if n % 2 == 0 => {
-                        let divisor = 10u64.pow(n / 2);
-                        stones.push_back(s / divisor);
-                        stones.push_back(s % divisor);
-                    }
-                    _ => stones.push_back(s * 2024)
-                }
-            }
-        }
-    }
 }
 
 #[cfg(test)]
