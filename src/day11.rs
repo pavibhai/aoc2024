@@ -15,43 +15,37 @@ pub fn generator(input: &str) -> Vec<u64> {
 }
 
 fn blink(stones: &[u64], times: u32) -> u64 {
-    let mut cache = HashMap::new();
+    let mut cache = vec![HashMap::new(); times as usize];
     stones.iter().map(|s| blink_dfs(*s, times, &mut cache)).sum()
 }
 
-fn blink_dfs(n: u64, times: u32, cache: &mut HashMap<(u64, u32), u64>) -> u64 {
+fn blink_dfs(n: u64, times: u32, cache: &mut Vec<HashMap<u64, u64>>) -> u64 {
     if times == 0 {
         1
+    } else if n == 0 {
+        blink_dfs(1, times - 1, cache)
     } else {
-        match n {
-            0 => blink_dfs(1, times - 1, cache),
-            n => {
-                match digits(n) {
-                    d if d % 2 == 0 => {
-                        let divisor = 10u64.pow(d / 2);
-                        from_cache_or_compute(n / divisor, times - 1, cache)
-                            + from_cache_or_compute(n % divisor, times - 1, cache)
-                    }
-                    _ => from_cache_or_compute(n * 2024, times - 1, cache)
-                }
+        // Match the number of digits
+        match n.ilog10() + 1 {
+            d if d % 2 == 0 => {
+                let divisor = 10u64.pow(d / 2);
+                from_cache_or_compute(n / divisor, times - 1, cache)
+                    + from_cache_or_compute(n % divisor, times - 1, cache)
             }
+            _ => from_cache_or_compute(n * 2024, times - 1, cache)
         }
     }
 }
 
-fn from_cache_or_compute(n: u64, times: u32, cache: &mut HashMap<(u64, u32), u64>) -> u64 {
-    match cache.get(&(n, times)) {
+fn from_cache_or_compute(n: u64, times: u32, cache: &mut Vec<HashMap<u64, u64>>) -> u64 {
+    match cache[times as usize].get(&n) {
         Some(n) => *n,
         None => {
             let r = blink_dfs(n, times, cache);
-            cache.insert((n, times), r);
+            cache[times as usize].insert(n, r);
             r
         }
     }
-}
-
-fn digits(n: u64) -> u32 {
-    n.ilog10() + 1
 }
 
 #[cfg(test)]
