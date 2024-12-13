@@ -1,5 +1,5 @@
-use std::collections::{HashMap, HashSet};
 use crate::day12::Direction::{EAST, NORTH, SOUTH, WEST};
+use std::collections::{HashMap, HashSet};
 
 pub fn part1(garden: &Garden) -> u32 {
     garden.fence_price(false)
@@ -15,28 +15,31 @@ pub fn generator(input: &str) -> Garden {
         .collect();
 
     let directions = [NORTH, SOUTH, WEST, EAST];
-    let regions = compute_regions(&arrangement, &directions);
-    let edges: HashSet<Edge> = compute_edges(&arrangement, &directions);
+    let mut region_lots = compute_regions(&arrangement, &directions);
+    let mut regions = Vec::new();
+    while !region_lots.is_empty() {
+        let plots = region_lots.pop().unwrap();
+        let edges = compute_region_edges(&plots);
+        regions.push(Region { plots, edges });
+    }
 
     Garden {
-        regions,
-        edges,
-        height: arrangement.len() as i32,
-        width: arrangement[0].len() as i32,
+        regions
     }
 }
 
-fn compute_region_edges(, region: &HashSet<XY>) -> HashSet<Edge> {
-    region.iter().flat_map(|r| {
-        [NORTH, SOUTH, WEST, EAST].iter().filter_map(|d| {
+fn compute_region_edges(region: &HashSet<XY>) -> HashSet<Edge> {
+    let mut edges: HashMap<Edge, u32> = HashMap::new();
+    region.iter().for_each(|r| {
+        [NORTH, SOUTH, WEST, EAST].iter().for_each(|d| {
             let edge = Edge::new(&r.x, &r.y, d);
-            if self.edges.contains(&edge) {
-                Some(edge)
-            } else {
-                None
-            }
+            edges.entry(edge)
+                .and_modify(|c| *c += 1)
+                .or_insert(1);
         })
-    }).collect()
+    });
+    edges.retain(|_, v| v == &1);
+    edges.into_keys().collect()
 }
 
 fn compute_regions(arrangement: &Vec<Vec<char>>, directions: &[Direction]) -> Vec<HashSet<XY>> {
@@ -77,39 +80,37 @@ fn compute_regions(arrangement: &Vec<Vec<char>>, directions: &[Direction]) -> Ve
     regions
 }
 
-fn compute_edges(arrangement: &Vec<Vec<char>>, directions: &[Direction]) -> HashSet<Edge> {
-    let mut edges: HashMap<Edge, HashSet<char>> = HashMap::new();
-    let width: i32 = arrangement[0].len() as i32;
-    let height: i32 = arrangement.len() as i32;
-    arrangement.iter().enumerate()
-        .for_each(|(y, line)| {
-            line.iter().enumerate().for_each(|(x, c)| {
-                directions.iter().for_each(|&d| {
-                    edges.entry(Edge::new(&(x as i32), &(y as i32), &d))
-                        .and_modify(|p| {
-                            p.insert(arrangement[y][x]);
-                        })
-                        .or_insert_with(|| {
-                            let mut h = HashSet::new();
-                            h.insert(arrangement[y][x]);
-                            h
-                        }).insert(*c);
-                })
-            })
-        });
-
-    edges.iter().filter_map(|(e, p)| {
-        if p.len() > 1 || e.is_perimeter(&height, &width) {
-            Some(*e)
-        } else {
-            None
-        }
-    }).collect()
-}
-
 pub struct Region {
     plots: HashSet<XY>,
     edges: HashSet<Edge>,
+}
+
+impl Region {
+    fn fence_price(&self, bulk_discount: bool) -> u32 {
+        if bulk_discount {
+            (self.plots.len() * self.compute_sides()) as u32
+        } else {
+            (self.plots.len() * self.edges.len()) as u32
+        }
+    }
+
+    fn compute_sides(&self) -> usize {
+        self.edges.iter().filter(|e| {
+            if e.x1 == e.x2 {
+                let p = Edge { x1: e.x1 - 1, x2: e.x1 - 1, y1: e.y1, y2: e.y2 };
+                // check that x-1, y1 and x,y1 are in region or x-1, y2 and x, y2 are in region
+                !self.edges.contains(&p)
+                    || self.plots.contains(&XY { x: p.x1, y: e.y1 }) != self.plots.contains(&XY { x: e.x1, y: e.y1 })
+                    || self.plots.contains(&XY { x: p.x1, y: e.y2 }) != self.plots.contains(&XY { x: e.x1, y: e.y2 })
+            } else {
+                let p = Edge { x1: e.x1, x2: e.x2, y1: e.y1 - 1, y2: e.y1 - 1 };
+                // check that x1, y-1 and x2, y-1 are in region or x1, y and x2, y
+                !self.edges.contains(&p)
+                    || self.plots.contains(&XY { x: e.x1, y: p.y1 }) != self.plots.contains(&XY { x: e.x1, y: e.y1 })
+                    || self.plots.contains(&XY { x: e.x1, y: p.y1 }) != self.plots.contains(&XY { x: e.x1, y: e.y2 })
+            }
+        }).count()
+    }
 }
 
 pub struct Garden {
@@ -119,35 +120,8 @@ pub struct Garden {
 impl Garden {
     fn fence_price(&self, bulk_discount: bool) -> u32 {
         self.regions.iter().map(|r| {
-            if bulk_discount {
-                r.len() as u32 * self.compute_sides(r)
-            } else {
-                r.len() as u32 * self.compute_perimeter(r)
-            }
+            r.fence_price(bulk_discount)
         }).sum()
-    }
-
-    fn compute_perimeter(&self, region: &HashSet<XY>) -> u32 {
-        self.compute_region_edges(region).len() as u32
-    }
-
-    fn compute_sides(&self, region: &HashSet<XY>) -> u32 {
-        let region_edges = self.compute_region_edges(region);
-        region_edges.iter().filter(|e| {
-            if e.x1 == e.x2 {
-                let p = Edge { x1: e.x1 - 1, x2: e.x1 - 1, y1: e.y1, y2: e.y2 };
-                // check that x-1, y1 and x,y1 are in region or x-1, y2 and x, y2 are in region
-                !region_edges.contains(&p)
-                    || region.contains(&XY { x: p.x1, y: e.y1 }) != region.contains(&XY { x: e.x1, y: e.y1 })
-                    || region.contains(&XY { x: p.x1, y: e.y2 }) != region.contains(&XY { x: e.x1, y: e.y2 })
-            } else {
-                let p = Edge { x1: e.x1, x2: e.x2, y1: e.y1 - 1, y2: e.y1 - 1 };
-                // check that x1, y-1 and x2, y-1 are in region or x1, y and x2, y
-                !region_edges.contains(&p)
-                    || region.contains(&XY { x: e.x1, y: p.y1 }) != region.contains(&XY { x: e.x1, y: e.y1 })
-                    || region.contains(&XY { x: e.x1, y: p.y1 }) != region.contains(&XY { x: e.x1, y: e.y2 })
-            }
-        }).count() as u32
     }
 }
 
@@ -193,15 +167,11 @@ impl Edge {
             WEST => Self { x1: x - 1, x2: *x, y1: *y, y2: *y },
         }
     }
-
-    fn is_perimeter(&self, height: &i32, width: &i32) -> bool {
-        &self.x1 < &0 || &self.x2 == width || &self.y1 < &0 || &self.y2 == height
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{generator, part1, part2, Edge};
+    use super::{generator, part1, part2};
 
     const INPUT: &str = "AAAA
 BBCD
@@ -212,18 +182,6 @@ EEEC";
     fn test_generator() {
         let g = generator(&INPUT);
         assert_eq!(g.regions.len(), 5);
-        assert_eq!(g.edges.len(), 28);
-
-        // Ensure the perimeter of the garden is an edge
-        for x in 0..g.width {
-            assert_eq!(true, g.edges.contains(&Edge { x1: x, x2: x, y1: -1, y2: 0 }));
-            assert_eq!(true, g.edges.contains(&Edge { x1: x, x2: x, y1: g.height - 1, y2: g.height }));
-        }
-
-        for y in 0..g.height {
-            assert_eq!(true, g.edges.contains(&Edge { x1: -1, x2: 0, y1: y, y2: y }));
-            assert_eq!(true, g.edges.contains(&Edge { x1: g.width - 1, x2: g.width, y1: y, y2: y }));
-        }
     }
 
     #[test]
