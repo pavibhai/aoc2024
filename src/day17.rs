@@ -15,7 +15,7 @@ pub fn part2(d: &Debugger) -> u64 {
 
 fn find_value(d: &mut Debugger, bits: u32, a_value: u64, a_idx: usize, expected: &Vec<u64>) -> Option<u64> {
     for v in 0..2u64.pow(bits) {
-        let curr = a_value | (v << (bits * a_idx as u32)) as u64;
+        let curr = a_value | (v << (bits * a_idx as u32));
         if curr == 0 { continue; }
         d.state.reset(curr);
         let o = d.run();
