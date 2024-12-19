@@ -1,5 +1,4 @@
 use std::collections::VecDeque;
-use crate::day18::Space::{CORRUPTED, SAFE};
 
 const NEIGHBORS: [(i32, i32); 4] = [(-1, 0), (1, 0), (0, -1), (0, 1)];
 
@@ -8,7 +7,7 @@ pub fn part1(m: &Memory) -> u32 {
 }
 
 pub fn part2(m: &Memory) -> String {
-    let result = m.blocking_byte(0, m.bytes.len());
+    let result = m.blocking_byte(0, m.max_byte as usize);
     format!("{},{}", result.x, result.y)
 }
 
@@ -39,18 +38,24 @@ impl XY {
 
 #[derive(Debug)]
 pub struct Memory {
-    bytes: Vec<XY>,
+    max_byte: u32,
+    bytes: Vec<Vec<u32>>,
     start: XY,
     exit: XY,
 }
 
 impl Memory {
     pub fn new(input: &str, dest_x: i32, dest_y: i32) -> Memory {
-        let bytes = input.lines()
-            .map(XY::new)
-            .collect();
+        let mut bytes = vec![vec![u32::MAX; dest_x as usize + 1]; dest_y as usize + 1];
+        let mut max_byte = 0;
+        input.lines().enumerate().for_each(|(y, line)| {
+            let p = XY::new(line);
+            bytes[p.y as usize][p.x as usize] = (y + 1) as u32;
+            max_byte += 1;
+        });
 
         Memory {
+            max_byte,
             bytes,
             start: XY::default(),
             exit: XY { x: dest_x, y: dest_y },
@@ -59,11 +64,6 @@ impl Memory {
 
     fn walk(&self, after: u32) -> Option<u32> {
         let mut min_steps = vec![vec![u32::MAX; self.exit.x as usize + 1]; self.exit.y as usize + 1];
-        let mut layout = vec![vec![SAFE; self.exit.x as usize + 1]; self.exit.y as usize + 1];
-
-        self.bytes[0..after as usize].iter().for_each(|b| {
-            layout[b.y as usize][b.x as usize] = CORRUPTED;
-        });
         let mut queue = VecDeque::new();
         min_steps[self.start.y as usize][self.start.x as usize] = 0;
         queue.push_back(self.start.clone());
@@ -78,7 +78,7 @@ impl Memory {
                 let mut next = b.clone();
                 next.apply(dx, dy);
                 if self.is_valid(&next)
-                    && layout[next.y as usize][next.x as usize] == SAFE
+                    && self.bytes[next.y as usize][next.x as usize] > after
                     && min_steps[next.y as usize][next.x as usize] > min_steps[b.y as usize][b.x as usize] + 1 {
                     min_steps[next.y as usize][next.x as usize] = min_steps[b.y as usize][b.x as usize] + 1;
                     queue.push_back(next);
@@ -95,7 +95,14 @@ impl Memory {
 
     fn blocking_byte(&self, start: usize, end: usize) -> XY {
         if start >= end {
-            return self.bytes[end - 1].clone();
+            for (y, row) in self.bytes.iter().enumerate() {
+                for (x, v) in row.iter().enumerate() {
+                    if *v == end as u32 {
+                        return XY { x: x as i32, y: y as i32 };
+                    }
+                }
+            }
+            unreachable!();
         }
 
         let mid = (start + end) / 2;
@@ -104,12 +111,6 @@ impl Memory {
             None => self.blocking_byte(start, mid),
         }
     }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-enum Space {
-    SAFE,
-    CORRUPTED,
 }
 
 #[cfg(test)]
@@ -145,10 +146,9 @@ mod tests {
     #[test]
     fn test_generator() {
         let m = Memory::new(&INPUT, 6, 6);
-        assert_eq!(m.bytes.len(), 25);
         assert_eq!(m.start, XY { x: 0, y: 0 });
         assert_eq!(m.exit, XY { x: 6, y: 6 });
-        assert_eq!(m.bytes[0], XY { x: 5, y: 4 });
+        assert_eq!(m.bytes[4][5], 1);
     }
 
     #[test]
@@ -160,6 +160,6 @@ mod tests {
     #[test]
     fn test_part_2() {
         let m = Memory::new(&INPUT, 6, 6);
-        assert_eq!(m.blocking_byte(0, m.bytes.len()), XY { x: 6, y: 1 });
+        assert_eq!(m.blocking_byte(0, m.max_byte as usize), XY { x: 6, y: 1 });
     }
 }
