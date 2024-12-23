@@ -4,12 +4,16 @@ use itertools::Itertools;
 pub fn part1(n: &Network) -> u32 {
     let sets = n.all_inter_connected(3);
     sets.iter()
-        .filter(|s| s.iter().any(|v| v.starts_with('t')))
+        .filter(|s| s.iter().any(|v| n.get_host(v).starts_with('t')))
         .count() as u32
 }
 
 pub fn part2(n: &Network) -> String {
-    n.max_possible_group().join(",")
+    let mut r = n.max_possible_group().iter()
+        .map(|v| n.get_host(v))
+        .collect_vec();
+    r.sort();
+    r.join(",")
 }
 
 pub fn generator(input: &str) -> Network {
@@ -17,34 +21,50 @@ pub fn generator(input: &str) -> Network {
 }
 
 pub struct Network {
-    connections: HashMap<String, Vec<String>>,
+    id_host_map: Vec<String>,
+    _host_id_map: HashMap<String, u32>,
+    connections: HashMap<u32, Vec<u32>>,
 }
 
 impl Network {
     fn new(input: &str) -> Self {
-        let mut connections: HashMap<String, Vec<String>> = HashMap::new();
+        let mut host_id_map: HashMap<String, u32> = HashMap::new();
+        let mut id_host_map: Vec<String> = Vec::new();
+        let mut connections: HashMap<u32, Vec<u32>> = HashMap::new();
+
         input.lines().for_each(|l| {
             let (c1, c2) = l.split_once('-').unwrap();
-            connections.entry(c1.to_string())
-                .and_modify(|v| v.push(c2.to_string()))
-                .or_insert(vec![c2.to_string()]);
-            connections.entry(c2.to_string())
-                .and_modify(|v| v.push(c1.to_string()))
-                .or_insert(vec![c1.to_string()]);
+            let id1 = *host_id_map.entry(c1.to_string()).or_insert(id_host_map.len() as u32);
+            if id_host_map.len() < host_id_map.len() { id_host_map.push(c1.to_owned()); }
+            let id2 = *host_id_map.entry(c2.to_string()).or_insert(id_host_map.len() as u32);
+            if id_host_map.len() < host_id_map.len() { id_host_map.push(c2.to_owned()); }
+
+            connections.entry(id1)
+                .and_modify(|v| v.push(id2))
+                .or_insert(vec![id2]);
+            connections.entry(id2)
+                .and_modify(|v| v.push(id1))
+                .or_insert(vec![id1]);
         });
 
-        println!("Max connections: {}", connections.values().map(|v| v.len()).max().unwrap());
-
-        Network { connections }
+        Network { id_host_map, _host_id_map: host_id_map, connections }
     }
 
-    fn all_inter_connected(&self, n: usize) -> HashSet<Vec<String>> {
+    fn _get_id(&self, host: &str) -> &u32 {
+        self._host_id_map.get(host).unwrap()
+    }
+
+    fn get_host(&self, id: &u32) -> &str {
+        self.id_host_map.get(*id as usize).unwrap()
+    }
+
+    fn all_inter_connected(&self, n: usize) -> HashSet<Vec<u32>> {
         let mut sets = HashMap::new();
         for (c, connections) in &self.connections {
             for combination in connections.iter().combinations(n - 1) {
-                let mut s: Vec<String> = combination.iter()
-                    .map(|&v| v.to_string()).collect();
-                s.push(c.to_string());
+                let mut s: Vec<u32> = combination.iter()
+                    .map(|&v| *v).collect();
+                s.push(*c);
                 s.sort();
                 sets.entry(s)
                     .and_modify(|v| *v += 1)
@@ -56,7 +76,7 @@ impl Network {
             .collect()
     }
 
-    fn max_possible_group(&self) -> Vec<String> {
+    fn max_possible_group(&self) -> Vec<u32> {
         let mut max_size = self.connections.iter()
             .map(|(_, v)| v.len() + 1)
             .max()
@@ -115,8 +135,9 @@ td-yn";
     #[test]
     fn test_generator() {
         let n = generator(&INPUT);
-        assert_eq!(n.connections.get("kh").unwrap().len(), 4);
-        assert_eq!(n.connections.get("qp").unwrap().len(), 4);
+
+        assert_eq!(n.connections.get(n._get_id("kh")).unwrap().len(), 4);
+        assert_eq!(n.connections.get(n._get_id("qp")).unwrap().len(), 4);
     }
 
     #[test]
